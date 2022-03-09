@@ -42,6 +42,9 @@ module Lecture2
 
 -- VVV If you need to import libraries, do it after this line ... VVV
 
+import Data.Char (isSpace)
+import Data.List (partition)
+
 -- ^^^ and before this line. Otherwise the test suite might fail  ^^^
 
 {- | Implement a function that finds a product of all the numbers in
@@ -52,7 +55,11 @@ zero, you can stop calculating product and return 0 immediately.
 84
 -}
 lazyProduct :: [Int] -> Int
-lazyProduct = error "TODO"
+lazyProduct = lazyProductHelper 1
+  where lazyProductHelper :: Int -> [Int] -> Int
+        lazyProductHelper p [] = p
+        lazyProductHelper _ (0:_) = 0
+        lazyProductHelper p (x:xs) = lazyProductHelper (p * x) xs
 
 {- | Implement a function that duplicates every element in the list.
 
@@ -62,7 +69,7 @@ lazyProduct = error "TODO"
 "ccaabb"
 -}
 duplicate :: [a] -> [a]
-duplicate = error "TODO"
+duplicate = concatMap (replicate 2)
 
 {- | Implement function that takes index and a list and removes the
 element at the given position. Additionally, this function should also
@@ -74,7 +81,15 @@ return the removed element.
 >>> removeAt 10 [1 .. 5]
 (Nothing,[1,2,3,4,5])
 -}
-removeAt = error "TODO"
+
+removeAt :: Eq a => Int -> [a]-> (Maybe a, [a])
+removeAt idx xs 
+  | idx < 0           = (Nothing, xs)
+  | drop idx xs == [] = (Nothing, xs)  
+  | otherwise         = let
+                          (front, back) = splitAt idx xs
+                          updatedXs = concat [front, drop 1 back]
+                        in (Just $ head back, updatedXs)
 
 {- | Write a function that takes a list of lists and returns only
 lists of even lengths.
@@ -85,7 +100,12 @@ lists of even lengths.
 ♫ NOTE: Use eta-reduction and function composition (the dot (.) operator)
   in this function.
 -}
-evenLists = error "TODO"
+
+evenLists :: [[a]] -> [[a]]
+evenLists = filter isLstLenEven
+  where
+    isLstLenEven :: [a] -> Bool  
+    isLstLenEven xs = length xs `mod` 2 == 0 
 
 {- | The @dropSpaces@ function takes a string containing a single word
 or number surrounded by spaces and removes all leading and trailing
@@ -101,7 +121,17 @@ spaces.
 
 🕯 HINT: look into Data.Char and Prelude modules for functions you may use.
 -}
-dropSpaces = error "TODO"
+
+dropSpaces :: String -> String
+dropSpaces = go [] False
+  where 
+    go :: String -> Bool -> String -> String 
+    go res _ [] = reverse res
+    go res _ (x:[]) = if isSpace x then reverse res else reverse (x:res)
+    go res firstCharacterFound (f:s:xs)
+      | firstCharacterFound = if isSpace f && isSpace s then reverse res else go (f:res) True (s:xs)
+      | not (isSpace f) && not firstCharacterFound = go (f:res) True (s:xs)
+      | otherwise = go res False (s:xs)
 
 {- |
 
@@ -164,7 +194,25 @@ data Knight = Knight
     , knightEndurance :: Int
     }
 
-dragonFight = error "TODO"
+data Chest a = Chest Int a
+
+data DragonType = Red | Blue | Green
+
+data Dragon = Dragon
+    { dragonType      :: DragonType
+    , dragonHealth    :: Int
+    , dragonAttack    :: Int
+    }
+
+getExpPts :: DragonType -> Int
+getExpPts dragon = case dragon of
+  Red -> 100
+  Blue -> 150
+  Green -> 250 
+
+
+-- dragonFight :: Chest -> Knight -> Dragon -> DragonFightResult
+dragonFight (Chest gold tresure) knight dragon = undefined
 
 ----------------------------------------------------------------------------
 -- Extra Challenges
@@ -185,7 +233,9 @@ False
 True
 -}
 isIncreasing :: [Int] -> Bool
-isIncreasing = error "TODO"
+isIncreasing [] = True
+isIncreasing (_:[]) = True
+isIncreasing (x:y:rest) = if y > x then isIncreasing (y:rest) else False
 
 {- | Implement a function that takes two lists, sorted in the
 increasing order, and merges them into new list, also sorted in the
@@ -197,8 +247,13 @@ verify that.
 >>> merge [1, 2, 4] [3, 7]
 [1,2,3,4,7]
 -}
+
 merge :: [Int] -> [Int] -> [Int]
-merge = error "TODO"
+merge xs [] = xs
+merge [] ys = ys
+merge (x:xs) (y:ys) 
+  | x <= y    = x:merge xs (y:ys)
+  | otherwise = y:merge (x:xs) ys
 
 {- | Implement the "Merge Sort" algorithm in Haskell. The @mergeSort@
 function takes a list of numbers and returns a new list containing the
@@ -214,8 +269,14 @@ The algorithm of merge sort is the following:
 >>> mergeSort [3, 1, 2]
 [1,2,3]
 -}
+
 mergeSort :: [Int] -> [Int]
-mergeSort = error "TODO"
+mergeSort [] = []
+mergeSort [a] = [a]
+mergeSort xs = merge (mergeSort (firstHalf xs)) (mergeSort (secondHalf xs))
+  where
+    firstHalf  ys = let { n = length ys } in take (div n 2) ys
+    secondHalf ys = let { n = length ys } in drop (div n 2) ys
 
 
 {- | Haskell is famous for being a superb language for implementing
@@ -228,6 +289,7 @@ In programming we write expressions like "x + 1" or "y + x + 10".
 Such expressions can be represented in a more structured way (than a
 string) using the following recursive Algebraic Data Type:
 -}
+
 data Expr
     = Lit Int
     | Var String
@@ -268,7 +330,23 @@ data EvalError
 It returns either a successful evaluation result or an error.
 -}
 eval :: Variables -> Expr -> Either EvalError Int
-eval = error "TODO"
+eval progScopeVars expr = case expr of 
+  Lit val -> Right val
+  Var varName -> 
+                let 
+                  varVal = lookup varName progScopeVars
+                in case varVal of
+                    Just n -> Right n
+                    Nothing -> Left (VariableNotFound varName)
+  Add left right -> 
+                  let
+                    leftEval  = eval progScopeVars left
+                    rightEval = eval progScopeVars right
+                  in case leftEval of
+                    Left (VariableNotFound _) -> leftEval
+                    Right x -> case rightEval of
+                          Left (VariableNotFound _) -> rightEval
+                          Right y -> Right (x + y)
 
 {- | Compilers also perform optimizations! One of the most common
 optimizations is "Constant Folding". It performs arithmetic operations
@@ -279,6 +357,7 @@ version.
 For example, if you have an expression:
 
 x + 10 + y + 15 + 20
+Add (Var "x") (Add (Lit 10) (Add (Var "y") (Add (Lit 15) (Lit 20))))
 
 The result of constant folding can be:
 
@@ -291,5 +370,21 @@ x + 45 + y
 Write a function that takes and expression and performs "Constant
 Folding" optimization on the given expression.
 -}
+
 constantFolding :: Expr -> Expr
-constantFolding = error "TODO"
+constantFolding = createOptimizedExpr . foldAllLiterals . partition isVar . flattenExpr []
+  where
+    isVar expr = case expr of
+                  Var _ -> True
+                  _     -> False
+    flattenExpr ctn expr = case expr of
+                            Lit _          -> expr : ctn
+                            Var _          -> expr : ctn
+                            Add left right -> flattenExpr ctn left ++ flattenExpr ctn right
+    foldAllLiterals (vars, literals) = foldl (\(vs, Lit res) (Lit val) -> 
+                                                (vs, Lit (res + val))
+                                            ) (vars, Lit 0) literals
+    createOptimizedExpr ([v], Lit 0) = v
+    createOptimizedExpr (vars, literal) = foldl (\acc var -> Add var acc) literal vars
+
+
