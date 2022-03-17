@@ -233,12 +233,10 @@ Product {getProduct = 6}
 
 appendDiff3 :: (Semigroup a, Eq a) => a -> a -> a -> a
 appendDiff3 x y z
-  | x == y = if y == z then x else y <> z
-  | x /= y = if y == z
-            then x <> y
-            else if x == z
-              then x <> y
-              else x <> y <> z
+  | x == y && y == z = x
+  | x == y && y /= z = y <> z
+  | x /= y && (y == z || x == z) = x <> y
+  | x /= y && x /= z = x <> y <> z
 
 {-
 
