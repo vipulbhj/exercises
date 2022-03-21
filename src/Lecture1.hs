@@ -57,7 +57,7 @@ is 25.
 -- DON'T FORGET TO SPECIFY THE TYPE IN HERE
 
 sumOfSquares :: Int -> Int -> Int
-sumOfSquares x y = x ^ 2 + y ^ 2
+sumOfSquares x y = x * x + y * y
 
 {- | Implement a function that returns the last digit of a given number.
 
@@ -72,7 +72,7 @@ sumOfSquares x y = x ^ 2 + y ^ 2
 -- DON'T FORGET TO SPECIFY THE TYPE IN HERE
 
 lastDigit :: Int -> Int
-lastDigit n = mod (abs n) 10
+lastDigit n = abs n `mod` 10
 
 {- | Write a function that takes three numbers and returns the
 difference between the biggest number and the smallest one.
@@ -88,7 +88,7 @@ function.
 -}
 
 minmax :: Int -> Int -> Int -> Int
-minmax x y z = (max (max x y) z) - (min (min x y) z)
+minmax x y z = max (max x y) z - min (min x y) z
 
 {- | Implement a function that takes a string, start and end positions
 and returns a substring of a given string from the start position to
@@ -109,7 +109,7 @@ string.
 subString :: Int -> Int -> String -> String
 subString start end str
   | end < 0 = ""
-  | start < 0 && end >= 0 = take (end  + 1) str
+  | start < 0 = take (end  + 1) str
   | otherwise = take (end - start + 1) (drop start str)
 
 {- | Write a function that takes a String — space separated numbers,
@@ -140,6 +140,8 @@ HINT: Use recursion to implement this function.
 
 lowerAndGreater :: Int -> [Int] -> String
 lowerAndGreater n list = show n ++ " is greater than " ++ show lowerCount ++ " elements and lower than " ++ show higherCount ++ " elements"
-                          where countLowerHigher = foldl (\[l,h] x -> if x < n then [l + 1, h] else if x > n then [l, h + 1] else [l, h]) [0, 0]
-                                [lowerCount, higherCount] = countLowerHigher list
+                          where
+                            countLowerHigher :: [Int] -> (Int, Int)
+                            countLowerHigher = foldl (\(l,h) x -> if x < n then (l + 1, h) else if x > n then (l, h + 1) else (l, h)) (0, 0)
+                            (lowerCount, higherCount) = countLowerHigher list
 
