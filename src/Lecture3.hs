@@ -169,7 +169,7 @@ instance Semigroup Reward where
 instance Monoid Reward where
   mempty :: Reward
   mempty = Reward 
-    { rewardGold = Gold 0
+    { rewardGold = mempty
     , rewardSpecial = False
     }
 
