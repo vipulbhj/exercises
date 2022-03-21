@@ -164,7 +164,7 @@ data Reward = Reward
 instance Semigroup Reward where
   (<>) :: Reward -> Reward -> Reward
   Reward {rewardGold=g1, rewardSpecial=s1} <> Reward {rewardGold=g2, rewardSpecial=s2} = 
-    Reward {rewardGold=(g1 <> g2), rewardSpecial=(s1 || s2)}
+    Reward {rewardGold = g1 <> g2, rewardSpecial = s1 || s2}
 
 instance Monoid Reward where
   mempty :: Reward
