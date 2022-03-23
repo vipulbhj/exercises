@@ -158,7 +158,7 @@ data List1 a = List1 a [a]
 -- | This should be list append.
 instance Semigroup (List1 a) where
   (<>) :: List1 a -> List1 a -> List1 a
-  (List1 x xs) <> (List1 y ys) = List1 x (xs <> [y] <> ys)
+  List1 x xs <> List1 y ys = List1 x (xs <> (y : ys))
 
 {- | Does 'List1' have the 'Monoid' instance? If no then why?
 
@@ -247,7 +247,7 @@ types that can have such an instance.
 -- instance Foldable Reward where
 instance Foldable List1 where
   foldr :: (a -> b -> b) -> b -> List1 a -> b
-  foldr f acc (List1 x xs) = foldr f acc ([x] <> xs)
+  foldr f acc (List1 x xs) = f x (foldr f acc xs)
 
   foldMap :: Monoid m => (a -> m) -> List1 a -> m
   foldMap f (List1 x xs) = f x <> foldMap f xs
