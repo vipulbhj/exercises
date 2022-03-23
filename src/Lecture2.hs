@@ -235,7 +235,7 @@ True
 isIncreasing :: [Int] -> Bool
 isIncreasing [] = True
 isIncreasing [_] = True
-isIncreasing (x:y:rest) = if y > x then isIncreasing (y:rest) else False
+isIncreasing (x : y : rest) = x < y && isIncreasing (y : rest)
 
 {- | Implement a function that takes two lists, sorted in the
 increasing order, and merges them into new list, also sorted in the
