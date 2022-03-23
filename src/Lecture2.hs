@@ -43,7 +43,6 @@ module Lecture2
 -- VVV If you need to import libraries, do it after this line ... VVV
 
 import Data.Char (isSpace)
-import Data.List (partition)
 
 -- ^^^ and before this line. Otherwise the test suite might fail  ^^^
 
@@ -57,8 +56,8 @@ zero, you can stop calculating product and return 0 immediately.
 lazyProduct :: [Int] -> Int
 lazyProduct = lazyProductHelper 1
   where lazyProductHelper :: Int -> [Int] -> Int
-        lazyProductHelper p [] = p
-        lazyProductHelper _ (0:_) = 0
+        lazyProductHelper p []     = p
+        lazyProductHelper _ (0:_)  = 0
         lazyProductHelper p (x:xs) = lazyProductHelper (p * x) xs
 
 {- | Implement a function that duplicates every element in the list.
@@ -69,7 +68,7 @@ lazyProduct = lazyProductHelper 1
 "ccaabb"
 -}
 duplicate :: [a] -> [a]
-duplicate = concatMap (replicate 2)
+duplicate = foldr (\x acc -> x:x:acc) []
 
 {- | Implement function that takes index and a list and removes the
 element at the given position. Additionally, this function should also
@@ -82,14 +81,15 @@ return the removed element.
 (Nothing,[1,2,3,4,5])
 -}
 
-removeAt :: Eq a => Int -> [a]-> (Maybe a, [a])
+removeAt :: Int -> [a]-> (Maybe a, [a])
 removeAt idx xs 
-  | idx < 0           = (Nothing, xs)
-  | drop idx xs == [] = (Nothing, xs)  
-  | otherwise         = let
-                          (front, back) = splitAt idx xs
-                          updatedXs = concat [front, drop 1 back]
-                        in (Just $ head back, updatedXs)
+  | idx < 0   = (Nothing, xs)
+  | otherwise = let
+                  (front, back) = splitAt idx xs
+                  updatedXs = concat [front, drop 1 back]
+                in case back of 
+                  [] -> (Nothing, xs)
+                  _  -> (Just $ head back, updatedXs)
 
 {- | Write a function that takes a list of lists and returns only
 lists of even lengths.
@@ -105,7 +105,7 @@ evenLists :: [[a]] -> [[a]]
 evenLists = filter isLstLenEven
   where
     isLstLenEven :: [a] -> Bool  
-    isLstLenEven xs = length xs `mod` 2 == 0 
+    isLstLenEven = even . length
 
 {- | The @dropSpaces@ function takes a string containing a single word
 or number surrounded by spaces and removes all leading and trailing
@@ -123,15 +123,7 @@ spaces.
 -}
 
 dropSpaces :: String -> String
-dropSpaces = go [] False
-  where 
-    go :: String -> Bool -> String -> String 
-    go res _ [] = reverse res
-    go res _ (x:[]) = if isSpace x then reverse res else reverse (x:res)
-    go res firstCharacterFound (f:s:xs)
-      | firstCharacterFound = if isSpace f && isSpace s then reverse res else go (f:res) True (s:xs)
-      | not (isSpace f) && not firstCharacterFound = go (f:res) True (s:xs)
-      | otherwise = go res False (s:xs)
+dropSpaces = takeWhile (not . isSpace) . dropWhile isSpace
 
 {- |
 
@@ -188,31 +180,50 @@ You're free to define any helper functions.
 -}
 
 -- some help in the beginning ;)
+
 data Knight = Knight
     { knightHealth    :: Int
     , knightAttack    :: Int
     , knightEndurance :: Int
     }
 
-data Chest a = Chest Int a
+-- data Chest a = Chest Int a | Int
 
-data DragonType = Red | Blue | Green
+-- data DragonType = Red | Blue | Green
 
-data Dragon = Dragon
-    { dragonType      :: DragonType
-    , dragonHealth    :: Int
-    , dragonAttack    :: Int
-    }
+-- data Dragon a = Dragon
+--     { dragonType      :: DragonType
+--     , dragonHealth    :: Int
+--     , dragonAttack    :: Int
+--     , dragonChest     :: Chest a
+--     }
 
-getExpPts :: DragonType -> Int
-getExpPts dragon = case dragon of
-  Red -> 100
-  Blue -> 150
-  Green -> 250 
+-- data Reward a = RewardWithTreasure Int a Int | RewardWithoutTreasure Int Int  
 
+-- data DragonFightResult a = DragonDies (Reward a) | KnightDies | KnightRunsAway
 
--- dragonFight :: Chest -> Knight -> Dragon -> DragonFightResult
-dragonFight (Chest gold tresure) knight dragon = undefined
+-- getExpPts :: DragonType -> Int
+-- getExpPts Red   = 100
+-- getExpPts Blue  = 150
+-- getExpPts Green = 250
+
+-- calcReward :: DragonType -> Chest a -> Reward a
+-- calcReward Green (Chest _ _)                 = error "Invalid game state"
+-- calcReward Green gold                        = RewardWithoutTreasure gold (getExpPts Green)
+-- calcReward dragonType (Chest gold treasure ) = RewardWithTreasure gold treasure (getExpPts dragonType)
+-- calcReward dragonType gold                   = RewardWithoutTreasure gold (getExpPts dragonType)  
+
+-- dragonFightGameLogic :: Int -> Knight -> Dragon a -> DragonFightResult a
+-- dragonFightGameLogic step (Knight kHealth kAttack kEndurance) (Dragon dType dHealth dAttack dChest)
+--   | dH            == 0 = DragonDies (calcReward dType)
+--   | kH            == 0 = KnightDies
+--   | kEndurance    == 0 = KnightRunsAway
+--   | step `mod` 10 == 0 = dragonFightGameLogic (step + 1) (Knight (kHealth - dAttack) kAttack (kEndurance - 1)) (Dragon dType (dHealth - kAttack) dAttack dChest)
+--   | otherwise          = dragonFightGameLogic (step + 1) (Knight kHealth kAttack (kEndurance - 1)) (Dragon dType (dHealth - kAttack) dAttack dChest)
+
+-- dragonFight :: Knight -> Dragon a -> DragonFightResult a
+-- dragonFight = dragonFightGameLogic 1
+dragonFight = undefined
 
 ----------------------------------------------------------------------------
 -- Extra Challenges
@@ -233,9 +244,9 @@ False
 True
 -}
 isIncreasing :: [Int] -> Bool
-isIncreasing [] = True
-isIncreasing (_:[]) = True
-isIncreasing (x:y:rest) = if y > x then isIncreasing (y:rest) else False
+isIncreasing []  = True
+isIncreasing [_] = True
+isIncreasing (x : y : rest) = x < y && isIncreasing (y : rest)
 
 {- | Implement a function that takes two lists, sorted in the
 increasing order, and merges them into new list, also sorted in the
@@ -251,7 +262,8 @@ verify that.
 merge :: [Int] -> [Int] -> [Int]
 merge xs [] = xs
 merge [] ys = ys
-merge (x:xs) (y:ys) 
+merge (x:xs) (y:ys)
+  | x == y    = x:y:merge xs ys
   | x <= y    = x:merge xs (y:ys)
   | otherwise = y:merge (x:xs) ys
 
@@ -273,10 +285,8 @@ The algorithm of merge sort is the following:
 mergeSort :: [Int] -> [Int]
 mergeSort [] = []
 mergeSort [a] = [a]
-mergeSort xs = merge (mergeSort (firstHalf xs)) (mergeSort (secondHalf xs))
-  where
-    firstHalf  ys = let { n = length ys } in take (div n 2) ys
-    secondHalf ys = let { n = length ys } in drop (div n 2) ys
+mergeSort xs = merge (mergeSort xsFirstHalf) (mergeSort xsSecondHalf)
+  where (xsFirstHalf, xsSecondHalf) = splitAt (length xs `div` 2) xs
 
 
 {- | Haskell is famous for being a superb language for implementing
@@ -372,19 +382,13 @@ Folding" optimization on the given expression.
 -}
 
 constantFolding :: Expr -> Expr
-constantFolding = createOptimizedExpr . foldAllLiterals . partition isVar . flattenExpr []
+constantFolding = genOptimisedExpr . collectVarsAndLiteralSum ([], 0)
   where
-    isVar expr = case expr of
-                  Var _ -> True
-                  _     -> False
-    flattenExpr ctn expr = case expr of
-                            Lit _          -> expr : ctn
-                            Var _          -> expr : ctn
-                            Add left right -> flattenExpr ctn left ++ flattenExpr ctn right
-    foldAllLiterals (vars, literals) = foldl (\(vs, Lit res) (Lit val) -> 
-                                                (vs, Lit (res + val))
-                                            ) (vars, Lit 0) literals
-    createOptimizedExpr ([v], Lit 0) = v
-    createOptimizedExpr (vars, literal) = foldl (\acc var -> Add var acc) literal vars
-
-
+    collectVarsAndLiteralSum :: ([String], Int) -> Expr -> ([String], Int)
+    collectVarsAndLiteralSum (varStrings, literalSum) expr = case expr of
+      Lit l   -> (varStrings, literalSum + l)
+      Var v   -> (v:varStrings, literalSum)
+      Add x y -> collectVarsAndLiteralSum (collectVarsAndLiteralSum (varStrings, literalSum) x) y
+    genOptimisedExpr :: ([String], Int) -> Expr
+    genOptimisedExpr ([x], 0)                = Var x
+    genOptimisedExpr (varStrings, literalSum) = foldr Add (Lit literalSum) $ map Var varStrings
