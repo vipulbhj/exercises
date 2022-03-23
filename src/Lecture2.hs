@@ -244,7 +244,7 @@ False
 True
 -}
 isIncreasing :: [Int] -> Bool
-isIncreasing []  = True
+isIncreasing [] = True
 isIncreasing [_] = True
 isIncreasing (x : y : rest) = x < y && isIncreasing (y : rest)
 
