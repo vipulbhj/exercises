@@ -270,7 +270,7 @@ types that can have such an instance.
 -- instance Foldable Reward where
 instance Foldable List1 where
   foldr :: (a -> b -> b) -> b -> List1 a -> b
-  foldr f acc (List1 x xs) = foldr f acc ([x] <> xs)
+  foldr f acc (List1 x xs) = f x (foldr f acc xs)
 
   foldMap :: Monoid m => (a -> m) -> List1 a -> m
   foldMap f (List1 x xs) = f x <> foldMap f xs
