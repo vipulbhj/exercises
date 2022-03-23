@@ -1,4 +1,5 @@
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {- |
 Module                  : Lecture3
@@ -47,12 +48,12 @@ of the week.
 data Weekday
     = Monday
     | Tuesday
+    | Wednesday
     | Thursday
     | Friday
     | Saturday
-    | Wednesday
     | Sunday
-    deriving (Show, Eq)
+    deriving (Show, Eq, Enum, Bounded)
 
 {- | Write a function that will display only the first three letters
 of a weekday.
@@ -60,15 +61,9 @@ of a weekday.
 >>> toShortString Monday
 "Mon"
 -}
+
 toShortString :: Weekday -> String
-toShortString day = case day of
-  Monday -> "Mon"
-  Tuesday -> "Tue"
-  Wednesday -> "Wed"
-  Thursday -> "Thu"
-  Friday -> "Fri"
-  Saturday -> "Sat"
-  Sunday -> "Sun" 
+toShortString = take 3 . show 
 
 {- | Write a function that returns next day of the week, following the
 given day.
@@ -91,26 +86,10 @@ Tuesday
   'Ordering') and not just 'Weekday'?
 -}
 
-instance Enum Weekday where
-  fromEnum Monday    = 0
-  fromEnum Tuesday   = 1
-  fromEnum Wednesday = 2
-  fromEnum Thursday  = 3
-  fromEnum Friday    = 4
-  fromEnum Saturday  = 5
-  fromEnum Sunday    = 6
-
-  toEnum 0 = Monday
-  toEnum 1 = Tuesday
-  toEnum 2 = Wednesday
-  toEnum 3 = Thursday
-  toEnum 4 = Friday
-  toEnum 5 = Saturday
-  toEnum 6 = Sunday
-  toEnum a = toEnum (a `mod` 7)
-
-next :: Enum a => a -> a
-next = succ
+next :: forall a. (Enum a, Bounded a) => a -> a
+next x
+  | fromEnum x < fromEnum (maxBound :: a) = succ x 
+  | otherwise                             = minBound :: a
 
 {- | Implement a function that calculates number of days from the first
 weekday to the second.
@@ -122,12 +101,10 @@ weekday to the second.
 -}
 
 daysTo :: Weekday -> Weekday -> Int
-daysTo i j = let 
-    a = fromEnum i
-    b = fromEnum j
-  in if b > a
-     then b - a
-     else b + 7 - a
+daysTo start end = daysToHelper 0 start
+  where daysToHelper count day
+          | day == end = count
+          | otherwise  = daysToHelper (count + 1) (next day) 
 
 {-
 
@@ -205,7 +182,6 @@ monsters, you should get a combined treasure and not just the first
 -}
 instance Semigroup a => Semigroup (Treasure a) where
   (<>) :: Treasure a -> Treasure a -> Treasure a
-  NoTreasure     <> NoTreasure     = NoTreasure
   NoTreasure     <> a              = a
   a              <> NoTreasure     = a
   SomeTreasure x <> SomeTreasure y = SomeTreasure (x <> y)
@@ -233,10 +209,11 @@ Product {getProduct = 6}
 
 appendDiff3 :: (Semigroup a, Eq a) => a -> a -> a -> a
 appendDiff3 x y z
-  | x == y && y == z = x
-  | x == y && y /= z = y <> z
+  | x == y && y == z             = x
+  | x == y && y /= z             = y <> z
   | x /= y && (y == z || x == z) = x <> y
-  | x /= y && x /= z = x <> y <> z
+  | x /= y && x /= z             = x <> y <> z
+  | otherwise                    = error "Invalid State"
 
 {-
 
