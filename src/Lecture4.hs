@@ -1,3 +1,7 @@
+{-# LANGUAGE StrictData #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE BangPatterns #-}
+
 {- |
 Module                  : Lecture4
 Copyright               : (c) 2021-2022 Haskell Beginners 2022 Course
@@ -100,9 +104,15 @@ module Lecture4
     , printProductStats
     ) where
 
-import Data.List.NonEmpty (NonEmpty (..))
+import Data.List.NonEmpty (NonEmpty (..), fromList)
 import Data.Semigroup (Max (..), Min (..), Semigroup (..), Sum (..))
 import Text.Read (readMaybe)
+import Data.Maybe (mapMaybe)
+import System.Environment (getArgs)
+import Data.List (foldl')
+
+import Lecture2 (dropSpaces)
+
 
 {- In this exercise, instead of writing the entire program from
 scratch, you're offered to complete the missing parts.
@@ -134,8 +144,25 @@ errors. We will simply return an optional result here.
 🕯 HINT: Use the 'readMaybe' function from the 'Text.Read' module.
 -}
 
+splitOn :: Char -> String -> [String]
+splitOn delim = (\(f, s) -> f : s) . foldr (\c (container, res) -> if c == delim 
+                  then ([], container : res)
+                  else (c : container, res)
+                ) ([], [])
+
+-- Question: Is there a way to create a PositiveInt type ?
+
 parseRow :: String -> Maybe Row
-parseRow = error "TODO"
+parseRow = validateValues . splitOn ','
+  where
+    validateValues ["", _, _] = Nothing
+    validateValues [f , s, t] = (readMaybe (dropSpaces s) :: Maybe TradeType) 
+                                  >>= \parsedTradeType -> case readMaybe (dropSpaces t) of
+                                    Just num  -> if num >= 0 
+                                      then Just (Row f parsedTradeType num)
+                                      else Nothing
+                                    Nothing -> Nothing 
+    validateValues _          = Nothing
 
 {-
 We have almost all we need to calculate final stats in a simple and
@@ -152,12 +179,14 @@ newtype MaxLen = MaxLen
 {-
 We can implement the 'Semigroup' instance for this data type that will
 choose between two strings. The instance should return the longest
-string.
+string. 
 
 If both strings have the same length, return the first one.
 -}
-instance Semigroup MaxLen where
 
+instance Semigroup MaxLen where
+  (<>) :: MaxLen -> MaxLen -> MaxLen
+  MaxLen a <> MaxLen b = if length a >= length b then MaxLen a else MaxLen b
 
 {-
 It's convenient to represent our stats as a data type that has
@@ -183,8 +212,17 @@ The 'Stats' data type has multiple fields. All these fields have
 instance for the 'Stats' type itself.
 -}
 
-instance Semigroup Stats where
 
+
+instance Semigroup Stats where
+  (<>) :: Stats -> Stats -> Stats
+  (Stats a1 b1 c1 d1 e1 f1 g1 h1 j1) <> (Stats a2 b2 c2 d2 e2 f2 g2 h2 j2) =
+    (Stats (a1 <> a2) (b1 <> b2) (c1 <> c2) (d1 <> d2) (e1 `eagerMaybeAppend` e2) (f1 `eagerMaybeAppend` f2) (g1 `eagerMaybeAppend` g2) (h1 `eagerMaybeAppend` h2) (j1 <> j2))
+    where 
+      eagerMaybeAppend Nothing Nothing     = Nothing 
+      eagerMaybeAppend Nothing (Just !x)   = Just x
+      eagerMaybeAppend (Just !x) Nothing   = Just x 
+      eagerMaybeAppend (Just !x) (Just !y) = Just (x <> y) 
 
 {-
 The reason for having the 'Stats' data type is to be able to convert
@@ -200,7 +238,28 @@ row in the file.
 -}
 
 rowToStats :: Row -> Stats
-rowToStats = error "TODO"
+rowToStats (Row name Buy amt) = Stats
+    { statsTotalPositions = Sum 1
+    , statsTotalSum       = Sum (-amt)
+    , statsAbsoluteMax    = Max amt
+    , statsAbsoluteMin    = Min amt
+    , statsSellMax        = Nothing
+    , statsSellMin        = Nothing
+    , statsBuyMax         = Just (Max amt)
+    , statsBuyMin         = Just (Min amt)
+    , statsLongest        = MaxLen name
+    }
+rowToStats (Row name Sell amt) = Stats
+    { statsTotalPositions = Sum 1
+    , statsTotalSum       = Sum amt
+    , statsAbsoluteMax    = Max amt
+    , statsAbsoluteMin    = Min amt
+    , statsSellMax        = Just (Max amt)
+    , statsSellMin        = Just (Min amt)
+    , statsBuyMax         = Nothing
+    , statsBuyMin         = Nothing
+    , statsLongest        = MaxLen name
+    }
 
 {-
 Now, after we learned to convert a single row, we can convert a list of rows!
@@ -225,8 +284,13 @@ Have a look at the 'sconcat' function from the 'Semigroup' typeclass to
 implement the next task.
 -}
 
+foldl1' :: (a -> a -> a) -> NonEmpty a -> a
+foldl1' _ (x :| [])     = x
+foldl1' f (x :| (y:ys)) = foldl' f (f x y) ys
+{-# INLINE foldl1' #-}
+
 combineRows :: NonEmpty Row -> Stats
-combineRows = error "TODO"
+combineRows = foldl1' (<>) . fmap rowToStats
 
 {-
 After we've calculated stats for all rows, we can then pretty-print
@@ -237,7 +301,83 @@ you can return string "no value"
 -}
 
 displayStats :: Stats -> String
-displayStats = error "TODO"
+displayStats (Stats
+  (Sum statsTotalPositions)
+  (Sum statsTotalSum)
+  (Max statsAbsoluteMax)
+  (Min statsAbsoluteMin)   
+  Nothing
+  Nothing
+  (Just (Max statsBuyMax))       
+  (Just (Min statsBuyMin))        
+  (MaxLen statsLongest)) = unlines ["Total positions:       : " ++ show statsTotalPositions
+                                  , "Total final balance    : " ++ show statsTotalSum
+                                  , "Biggest absolute cost  : " ++ show statsAbsoluteMax
+                                  , "Smallest absolute cost : " ++ show statsAbsoluteMin
+                                  , "Max earning            : no value" 
+                                  , "Min earning            : no value"
+                                  , "Max spending           : " ++ show statsBuyMax
+                                  , "Min spending           : " ++ show statsBuyMin
+                                  , "Longest product name   : " ++ statsLongest
+                                  ]
+displayStats (Stats
+  (Sum statsTotalPositions)
+  (Sum statsTotalSum)
+  (Max statsAbsoluteMax)
+  (Min statsAbsoluteMin)
+  (Just (Max statsSellMax))       
+  (Just (Min statsSellMin)) 
+  Nothing
+  Nothing 
+  (MaxLen statsLongest)) = unlines ["Total positions:       : " ++ show statsTotalPositions
+                                  , "Total final balance    : " ++ show statsTotalSum
+                                  , "Biggest absolute cost  : " ++ show statsAbsoluteMax
+                                  , "Smallest absolute cost : " ++ show statsAbsoluteMin
+                                  , "Max earning            : " ++ show statsSellMax
+                                  , "Min earning            : " ++ show statsSellMin
+                                  , "Max spending           : no value"
+                                  , "Min spending           : no value"
+                                  , "Longest product name   : " ++ statsLongest
+                                  ]
+displayStats (Stats
+  (Sum statsTotalPositions)
+  (Sum statsTotalSum)
+  (Max statsAbsoluteMax)
+  (Min statsAbsoluteMin)
+  (Just (Max statsSellMax))       
+  (Just (Min statsSellMin)) 
+  (Just (Max statsBuyMax))       
+  (Just (Min statsBuyMin))
+  (MaxLen statsLongest)) = unlines ["Total positions:       : " ++ show statsTotalPositions
+                                  , "Total final balance    : " ++ show statsTotalSum
+                                  , "Biggest absolute cost  : " ++ show statsAbsoluteMax
+                                  , "Smallest absolute cost : " ++ show statsAbsoluteMin
+                                  , "Max earning            : " ++ show statsSellMax
+                                  , "Min earning            : " ++ show statsSellMin
+                                  , "Max spending           : " ++ show statsBuyMax
+                                  , "Min spending           : " ++ show statsBuyMin
+                                  , "Longest product name   : " ++ statsLongest
+                                  ]
+displayStats (Stats
+  (Sum statsTotalPositions)
+  (Sum statsTotalSum)
+  (Max statsAbsoluteMax)
+  (Min statsAbsoluteMin)
+  Nothing
+  Nothing
+  Nothing
+  Nothing
+  (MaxLen statsLongest)) = unlines ["Total positions:       : " ++ show statsTotalPositions
+                                  , "Total final balance    : " ++ show statsTotalSum
+                                  , "Biggest absolute cost  : " ++ show statsAbsoluteMax
+                                  , "Smallest absolute cost : " ++ show statsAbsoluteMin
+                                  , "Max earning            : no value"
+                                  , "Min earning            : no value"
+                                  , "Max spending           : no value"
+                                  , "Min spending           : no value"
+                                  , "Longest product name   : " ++ statsLongest
+                                  ]
+displayStats _ = error "Invalid state"
 
 {-
 Now, we definitely have all the pieces in places! We can write a
@@ -257,7 +397,7 @@ the file doesn't have any products.
 -}
 
 calculateStats :: String -> String
-calculateStats = error "TODO"
+calculateStats = displayStats . combineRows . fromList . mapMaybe parseRow . tail . lines
 
 {- The only thing left is to write a function with side-effects that
 takes a path to a file, reads its content, calculates stats and prints
@@ -267,7 +407,9 @@ Use functions 'readFile' and 'putStrLn' here.
 -}
 
 printProductStats :: FilePath -> IO ()
-printProductStats = error "TODO"
+printProductStats filePath = do
+  fileContent <- readFile filePath
+  putStrLn $ calculateStats fileContent
 
 {-
 Okay, I lied. This is not the last thing. Now, we need to wrap
@@ -283,7 +425,9 @@ https://hackage.haskell.org/package/base-4.16.0.0/docs/System-Environment.html#v
 -}
 
 main :: IO ()
-main = error "TODO"
+main = do
+  args <- getArgs
+  printProductStats $ head args
 
 
 {-
