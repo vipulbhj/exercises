@@ -145,7 +145,7 @@ errors. We will simply return an optional result here.
 -}
 
 splitOn :: Char -> String -> [String]
-splitOn delim = (\(f, s) -> f : s) . foldr (\c (container, res) -> if c == delim 
+splitOn delim = uncurry (:) . foldr (\c (container, res) -> if c == delim 
                   then ([], container : res)
                   else (c : container, res)
                 ) ([], [])
@@ -284,6 +284,7 @@ Have a look at the 'sconcat' function from the 'Semigroup' typeclass to
 implement the next task.
 -}
 
+-- Taken from Relude Source :p
 foldl1' :: (a -> a -> a) -> NonEmpty a -> a
 foldl1' _ (x :| [])     = x
 foldl1' f (x :| (y:ys)) = foldl' f (f x y) ys
